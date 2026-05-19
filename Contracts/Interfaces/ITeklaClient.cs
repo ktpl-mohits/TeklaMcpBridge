@@ -8,6 +8,7 @@ namespace Contracts.Interfaces
 {
     public interface ITeklaClient
     {
+        Task ForceDisconnect(string reason);
         Task<GenericEnvelope> ExecuteGenericCommand(GenericEnvelope request);  // only method SignalR pipe needs
     }
 }

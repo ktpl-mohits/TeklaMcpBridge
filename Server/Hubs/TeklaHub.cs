@@ -6,30 +6,41 @@ namespace Server.Hubs
 {
     public class TeklaHub : Hub<ITeklaClient>
     {
-        private readonly IUserTracker _tracker;
+        private readonly IConnectionTracker tracker;
 
-        public TeklaHub(IUserTracker userTracker)
+        public TeklaHub(IConnectionTracker tracker)
         {
-            this._tracker = userTracker;
+            this.tracker = tracker;
         }
-        public override Task OnConnectedAsync()
+        public async override Task OnConnectedAsync()
         {
-            // Read the custom userId we will pass from the local PC
-            var httpContext = Context.GetHttpContext();
-            var userId = httpContext?.Request.Query["userId"].ToString();
-
+            var userId = Context.UserIdentifier;
             if (!string.IsNullOrEmpty(userId))
             {
-                _tracker.Add(userId, Context.ConnectionId);
-                Console.WriteLine($"[Hub] User '{userId}' connected with ID: {Context.ConnectionId}");
+                // 1. Find if there is an existing old connection ID
+                var oldConnectionId = tracker.GetConnectionId(userId);
+                if (!string.IsNullOrEmpty(oldConnectionId))
+                {
+                    // Target ONLY the old connection directly, NOT Clients.User()
+                    await Clients.Client(oldConnectionId).ForceDisconnect("New instance started.");
+                    await Task.Delay(500);
+                }
+
+                // 2. Track the brand-new connection ID
+                tracker.Register(userId, Context.ConnectionId);
             }
 
-            return base.OnConnectedAsync();
+            Console.WriteLine($"[Hub] User '{Context.UserIdentifier}' connected with ID '{Context.ConnectionId}'.");
+            await base.OnConnectedAsync();
         }
 
         public override Task OnDisconnectedAsync(Exception? exception)
         {
-            _tracker.Remove(Context.ConnectionId);
+            var userId = Context.UserIdentifier;
+            if (!string.IsNullOrEmpty(userId))
+            {
+                tracker.Unregister(userId, Context.ConnectionId);
+            }
             return base.OnDisconnectedAsync(exception);
         }
 

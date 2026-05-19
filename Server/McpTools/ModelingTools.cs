@@ -1,5 +1,6 @@
 ﻿using ModelContextProtocol.Server;
 using Server.Services.Implementation;
+using Server.Context;
 using Server.Services.Interface;
 using System.ComponentModel;
 
@@ -9,31 +10,22 @@ namespace Server.McpTools
     public class ModelingTools
     {
         private readonly IModelingService _modelingService;
-        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly MCPCallContext mcpContext;
+    
 
-        public ModelingTools(IModelingService modelingService, IHttpContextAccessor httpContextAccessor)
+        public ModelingTools(IModelingService modelingService,MCPCallContext mcpContext)
         {
             _modelingService = modelingService;
-            this._httpContextAccessor = httpContextAccessor;
+            this.mcpContext = mcpContext;
+            
+      
         }
         [McpServerTool, Description("Designs and creates a beam in Tekla based on span and load")]
         public async Task<string> CreateBeam( double span, double load)
         {
 
-            // 1. Grab the current web request
-            var context = _httpContextAccessor.HttpContext;
-
-            // 2. Extract the userId from the query string
-            string? userId = context?.Request.Query["userId"].ToString();
-
-            // 3. Fail gracefully if the ID is missing
-            if (string.IsNullOrEmpty(userId))
-            {
-                return "Failed: Unauthorized. No userId was provided by the client.";
-            }
-
-            // 4. Pass the dynamic ID to your service
-            var result = await _modelingService.DesignAndCreateBeamAsync(userId, span, load);
+         
+            var result = await _modelingService.DesignAndCreateBeamAsync(mcpContext.UserId, span, load);
 
             return result.Success
                 ? $"Success! Beam ID: {result.CreatedObjectGuid}"
@@ -44,15 +36,8 @@ namespace Server.McpTools
         public async Task<string> CreateSimpleBeam()
         {
 
-            var context = _httpContextAccessor.HttpContext;
-            string? userId = context?.Request.Query["userId"].ToString();
 
-            if (string.IsNullOrEmpty(userId))
-            {
-                return "Failed: Unauthorized. No userId was provided by the client.";
-            }
-
-            var result = await _modelingService.CreateSimpleBeamAsync(userId);
+            var result = await _modelingService.CreateSimpleBeamAsync(mcpContext.UserId);
 
             return result.Success
                 ? $"Success! Beam ID: {result.CreatedObjectGuid}"
@@ -63,15 +48,8 @@ namespace Server.McpTools
         public async Task<string> DeleteBeam()
         {
 
-            var context = _httpContextAccessor.HttpContext;
-            string? userId = context?.Request.Query["userId"].ToString();
 
-            if (string.IsNullOrEmpty(userId))
-            {
-                return "Failed: Unauthorized. No userId was provided by the client.";
-            }
-
-            var result = await _modelingService.DeleteBeamAsync(userId);
+            var result = await _modelingService.DeleteBeamAsync(mcpContext.UserId);
 
             return result.Success
                 ? $"Success! {result.Message}"
@@ -79,19 +57,11 @@ namespace Server.McpTools
         }
         [McpServerTool, Description("Finds all beams with a specific profile and updates their Class attribute.")]
         public async Task<string> UpdateBeamClassByProfile(
-            [Description("The profile string to filter for, e.g., 'ISMB300'")] string profileName,
-            [Description("The new class number to assign, e.g., 5")] int newClass)
+        [Description("The profile string to filter for, e.g., 'ISMB300'")] string profileName,
+        [Description("The new class number to assign, e.g., 5")] int newClass)
         {
 
-            var context = _httpContextAccessor.HttpContext;
-            string? userId = context?.Request.Query["userId"].ToString();
-
-            if (string.IsNullOrEmpty(userId))
-            {
-                return "Failed: Unauthorized. No userId was provided by the client.";
-            }
-
-            var result = await _modelingService.UpdateBeamClassByProfileAsync(userId, profileName, newClass);
+            var result = await _modelingService.UpdateBeamClassByProfileAsync(mcpContext.UserId, profileName, newClass);
 
             return result.Success
                 ? $"Success! {result.Message}"
